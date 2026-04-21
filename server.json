@@ -1,0 +1,90 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.06ketan/medium-ops",
+  "description": "Medium CLI + 23-tool MCP server. Hybrid auth: RSS reads, dashboard GraphQL writes, official Integration Token. Your IDE drafts the responses. No API keys.",
+  "title": "medium-ops",
+  "websiteUrl": "https://medium-ops.chavan.in",
+  "repository": {
+    "url": "https://github.com/06ketan/medium-ops",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "registryBaseUrl": "https://pypi.org",
+      "identifier": "medium-ops",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "runtimeHint": "uvx",
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "mcp"
+        },
+        {
+          "type": "positional",
+          "value": "serve"
+        }
+      ],
+      "environmentVariables": [
+        {
+          "name": "MEDIUM_INTEGRATION_TOKEN",
+          "description": "Legacy Medium Integration Token (api.medium.com/v1/*). Optional. Generate at medium.com/me/settings → 'Integration tokens' (note: Medium stopped issuing new tokens in 2023).",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "MEDIUM_SID",
+          "description": "Medium 'sid' cookie value from medium.com (Application → Cookies). Used for authenticated reads + dashboard GraphQL.",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "MEDIUM_UID",
+          "description": "Medium 'uid' cookie value. Required alongside sid for some authenticated endpoints.",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "MEDIUM_XSRF",
+          "description": "Medium 'xsrf' cookie value. Required for any dashboard write (post_response, publish_post, delete_post, draft updates).",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "MEDIUM_CF_CLEARANCE",
+          "description": "Cloudflare 'cf_clearance' cookie. Only required when Cloudflare challenges your IP for dashboard write calls.",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "MEDIUM_USERNAME",
+          "description": "Your Medium handle (without the @). Required for the public RSS read path so the client knows whose feed to fetch.",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "MEDIUM_OPS_MCP_PATH",
+          "description": "Override path to the mcp.json file the auth layer reads. Defaults to ~/.cursor/mcp.json.",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "MEDIUM_OPS_LLM_CMD",
+          "description": "Optional: override the host CLI used by the unattended daemon path (default: auto-detect claude / cursor-agent / codex on PATH). Use {prompt} placeholder if your CLI takes the prompt as an arg.",
+          "isRequired": false,
+          "isSecret": false
+        }
+      ]
+    }
+  ],
+  "_meta": {
+    "io.modelcontextprotocol.registry/publisher-provided": {
+      "tool": "manual",
+      "version": "0.1.0"
+    }
+  }
+}
