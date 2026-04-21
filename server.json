@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.06ketan/medium-ops",
-  "description": "Medium CLI + 23-tool MCP server. Hybrid auth: RSS reads, dashboard GraphQL writes, official Integration Token. Your IDE drafts the responses. No API keys.",
+  "description": "Medium CLI + 23-tool MCP server. Your IDE drafts replies. No API keys.",
   "title": "medium-ops",
   "websiteUrl": "https://medium-ops.chavan.in",
   "repository": {
