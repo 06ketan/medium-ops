@@ -1,6 +1,6 @@
 [project]
 name = "medium-ops"
-version = "0.1.0"
+version = "0.1.1"
 description = "Standalone Medium CLI + MCP server. Hybrid official API + dashboard GraphQL. Your IDE drafts the responses."
 readme = "README.md"
 authors = [
