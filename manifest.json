@@ -1,0 +1,98 @@
+{
+  "manifest_version": "0.4",
+  "name": "medium-ops",
+  "display_name": "Medium-OPS",
+  "version": "0.1.0",
+  "description": "Medium CLI + 23-tool MCP server. Hybrid official API + dashboard GraphQL. Your IDE drafts the responses.",
+  "long_description": "Medium-OPS is a standalone Medium CLI and 23-tool MCP server. It speaks both the legacy Medium Integration API (api.medium.com/v1) and the dashboard GraphQL endpoint, so you can read posts/responses, draft + publish, and triage notifications from a single tool. Your IDE (Claude Desktop / Cursor) drafts the responses — no AI API keys, no paid LLM dependencies. Auth is cookie-based: capture MEDIUM_SID / MEDIUM_UID / MEDIUM_XSRF from medium.com Application → Cookies, or set MEDIUM_INTEGRATION_TOKEN for the legacy API. Distributed via PyPI (`uvx medium-ops`), the official MCP Registry, and Glama.",
+  "author": {
+    "name": "Ketan Chavan",
+    "email": "ketan.chavan.test@gmail.com",
+    "url": "https://github.com/06ketan"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/06ketan/medium-ops.git"
+  },
+  "homepage": "https://medium-ops.chavan.in",
+  "documentation": "https://github.com/06ketan/medium-ops#readme",
+  "support": "https://github.com/06ketan/medium-ops/issues",
+  "license": "MIT",
+  "privacy_policies": [
+    "https://github.com/06ketan/medium-ops/blob/main/PRIVACY.md"
+  ],
+  "keywords": [
+    "medium",
+    "blog",
+    "responses",
+    "comments",
+    "graphql",
+    "cli",
+    "mcp",
+    "model-context-protocol",
+    "cursor",
+    "claude-desktop"
+  ],
+  "server": {
+    "type": "python",
+    "entry_point": "src/medium_ops/mcp/server.py",
+    "mcp_config": {
+      "command": "uvx",
+      "args": ["medium-ops", "mcp", "serve"],
+      "env": {
+        "MEDIUM_INTEGRATION_TOKEN": "${user_config.integration_token}",
+        "MEDIUM_SID": "${user_config.sid_cookie}",
+        "MEDIUM_UID": "${user_config.uid_cookie}",
+        "MEDIUM_XSRF": "${user_config.xsrf_cookie}",
+        "MEDIUM_USERNAME": "${user_config.username}"
+      }
+    }
+  },
+  "tools_generated": true,
+  "compatibility": {
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": {
+      "python": ">=3.12"
+    }
+  },
+  "user_config": {
+    "integration_token": {
+      "type": "string",
+      "title": "Integration Token (legacy API)",
+      "description": "Legacy Medium Integration Token (api.medium.com/v1/*). Generate at medium.com/me/settings → 'Integration tokens'. Note: Medium stopped issuing new tokens in 2023.",
+      "sensitive": true,
+      "required": false,
+      "default": ""
+    },
+    "sid_cookie": {
+      "type": "string",
+      "title": "Medium 'sid' Cookie",
+      "description": "Value of the 'sid' cookie from medium.com (Application → Cookies). Used for authenticated reads + dashboard GraphQL.",
+      "sensitive": true,
+      "required": false,
+      "default": ""
+    },
+    "uid_cookie": {
+      "type": "string",
+      "title": "Medium 'uid' Cookie",
+      "description": "Value of the 'uid' cookie. Required alongside sid for some authenticated endpoints.",
+      "required": false,
+      "default": ""
+    },
+    "xsrf_cookie": {
+      "type": "string",
+      "title": "Medium 'xsrf' Cookie",
+      "description": "Value of the 'xsrf' cookie. Required for any dashboard write (post_response, publish_post, delete_post, draft updates).",
+      "sensitive": true,
+      "required": false,
+      "default": ""
+    },
+    "username": {
+      "type": "string",
+      "title": "Medium Username",
+      "description": "Your Medium handle (without the @). Required for the public RSS read path so the client knows whose feed to fetch.",
+      "required": false,
+      "default": ""
+    }
+  }
+}
