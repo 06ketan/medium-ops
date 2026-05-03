@@ -249,6 +249,11 @@ This:
   key shapes — useful for diffing against the queries hard-coded in
   `client.py` to spot schema drift before users hit it.
 
+> **Don't have these yet?** See [docs/AUTH-SETUP.md](./docs/AUTH-SETUP.md) for a
+> 5-minute browser-DevTools walkthrough. The Medium Integration Token API has
+> been deprecated since 2023 — most users today use cookie-based auth via
+> `MEDIUM_SID`.
+
 Env vars (or `~/.cursor/mcp.json` → `mcpServers.medium-ops.env`):
 
 ```bash
