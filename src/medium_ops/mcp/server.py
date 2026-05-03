@@ -20,6 +20,7 @@ draft loop (no API key needed):
 from __future__ import annotations
 
 import hashlib
+import inspect
 import json
 import os
 import time
@@ -53,21 +54,25 @@ TOOLS: dict[str, dict[str, Any]] = {
     },
     "get_own_profile": {
         "description": (
-            "Read-only. Return the authenticated user's full profile (username, name, "
-            "bio, follower count). For other users use get_profile."
+            "Read-only. Return the authenticated user's profile from the dashboard "
+            "GraphQL API: id, username, name, bio, follower/following counts. Use "
+            "this when you need 'who am I' context for downstream calls. For any "
+            "other user pass the @handle to get_profile instead."
         ),
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
     "get_profile": {
         "description": (
-            "Read-only. Any user's public profile by @username."
+            "Read-only. Public profile for any Medium user by @username (id, name, "
+            "bio, follower count). Use list_posts after this to fetch their stories. "
+            "For the authed user prefer get_own_profile."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "username": {
                     "type": "string",
-                    "description": "Medium handle without @. e.g. 'yourhandle'.",
+                    "description": "Medium handle without the leading @. e.g. 'yourhandle'.",
                 }
             },
             "required": ["username"],
@@ -87,12 +92,19 @@ TOOLS: dict[str, dict[str, Any]] = {
     },
     "get_post": {
         "description": (
-            "Read-only. Story metadata (title, url, clap count, response count) "
-            "by Medium post id (12+ char hex). For the body use get_post_content."
+            "Read-only. Story metadata by Medium post id (12+ char hex, e.g. "
+            "'a1b2c3d4e5f6'): title, url, claps, response count, publication, "
+            "publishedAt. For the article body use get_post_content. For the "
+            "comment thread use list_responses."
         ),
         "input_schema": {
             "type": "object",
-            "properties": {"post_id": {"type": "string"}},
+            "properties": {
+                "post_id": {
+                    "type": "string",
+                    "description": "Medium post id (12+ char hex). Find via search_posts or list_posts.",
+                }
+            },
             "required": ["post_id"],
         },
     },
@@ -126,27 +138,44 @@ TOOLS: dict[str, dict[str, Any]] = {
     "list_responses": {
         "description": (
             "Read-only. Top-level responses under a story (Medium's word for "
-            "comments). For replies under one response use get_response_replies. "
-            "For the filtered worklist use get_unanswered_responses."
+            "comments). Each response has its own id you can pass to "
+            "get_response_replies for the reply thread. For the filtered "
+            "'still need a reply' worklist prefer get_unanswered_responses."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "post_id": {"type": "string"},
-                "limit": {"type": "integer", "default": 50},
+                "post_id": {
+                    "type": "string",
+                    "description": "Medium post id (12+ char hex).",
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 50,
+                    "description": "Max responses to return. Default 50.",
+                },
             },
             "required": ["post_id"],
         },
     },
     "get_response_replies": {
         "description": (
-            "Read-only. Replies under one response id."
+            "Read-only. Nested replies under a single top-level response. Use "
+            "list_responses first to get response ids, then call this per "
+            "response to walk the thread."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "response_id": {"type": "string"},
-                "limit": {"type": "integer", "default": 50},
+                "response_id": {
+                    "type": "string",
+                    "description": "Response id from list_responses.",
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 50,
+                    "description": "Max replies to return. Default 50.",
+                },
             },
             "required": ["response_id"],
         },
@@ -175,17 +204,28 @@ TOOLS: dict[str, dict[str, Any]] = {
         },
     },
     "get_clap_count": {
-        "description": "Read-only. Total claps on a story.",
+        "description": (
+            "Read-only. Total claps (sum across all clappers, max 50 each) on a "
+            "single story. Use this for engagement checks before/after posting "
+            "a response. Faster than get_post when you only need the number."
+        ),
         "input_schema": {
             "type": "object",
-            "properties": {"post_id": {"type": "string"}},
+            "properties": {
+                "post_id": {
+                    "type": "string",
+                    "description": "Medium post id (12+ char hex).",
+                }
+            },
             "required": ["post_id"],
         },
     },
     "list_own_publications": {
         "description": (
-            "Read-only. Publications the authed user can publish to. Requires "
-            "integration token."
+            "Read-only. Publications the authed user can publish to as editor or "
+            "writer. Returns id + name pairs; use the id with publish_post's "
+            "publication_id to publish into a publication. Requires the Medium "
+            "integration token (MEDIUM_INTEGRATION_TOKEN)."
         ),
         "input_schema": {"type": "object", "properties": {}},
     },
@@ -294,7 +334,12 @@ TOOLS: dict[str, dict[str, Any]] = {
         },
     },
     "dedup_status": {
-        "description": "Read-only. Counts from the local dedup SQLite DB.",
+        "description": (
+            "Read-only. Counts from the local dedup SQLite DB (claps, "
+            "responses, publishes) used to prevent the same write running "
+            "twice. Call this after writes to confirm the ledger advanced, or "
+            "if a write inexplicably skipped (status='deduped' in audit_search)."
+        ),
         "input_schema": {"type": "object", "properties": {}},
     },
     # ------- MCP-native draft loop -------
@@ -556,12 +601,79 @@ def serve() -> None:
     server.run()
 
 
-def _register(server: Any, name: str, spec: dict[str, Any]) -> None:
-    @server.tool(name=name, description=spec["description"])
-    def _tool(**kwargs: Any) -> Any:
-        return _dispatch(name, kwargs)
+_JSON_TO_PY: dict[str, Any] = {
+    "string": str,
+    "integer": int,
+    "number": float,
+    "boolean": bool,
+    "object": dict,
+}
 
-    return _tool  # type: ignore[no-any-return]
+
+def _json_type_to_py(t: str | None, item_t: str | None = None) -> Any:
+    if t == "array":
+        return list[str] if item_t == "string" else list
+    return _JSON_TO_PY.get(t or "", Any)
+
+
+def _build_docstring(spec: dict[str, Any]) -> str:
+    lines = [spec["description"], ""]
+    schema = spec.get("input_schema") or {}
+    props = schema.get("properties") or {}
+    required = set(schema.get("required") or [])
+    if props:
+        lines.append("Args:")
+        for pname, pspec in props.items():
+            tag = " (required)" if pname in required else ""
+            desc = pspec.get("description", "")
+            lines.append(f"    {pname}: {desc}{tag}".rstrip())
+    return "\n".join(lines).strip()
+
+
+def _register(server: Any, name: str, spec: dict[str, Any]) -> None:
+    """Build a real Python function with introspectable parameters from the
+    tool's input_schema, so FastMCP can derive a correct JSON Schema. Without
+    a real signature, FastMCP falls back to a degenerate `kwargs` schema and
+    every client-side tool call fails validation.
+    """
+    schema = spec.get("input_schema") or {"type": "object", "properties": {}}
+    props: dict[str, dict[str, Any]] = schema.get("properties") or {}
+    required: set[str] = set(schema.get("required") or [])
+
+    params: list[inspect.Parameter] = []
+    annotations: dict[str, Any] = {}
+    for pname, pspec in props.items():
+        item_t = (pspec.get("items") or {}).get("type")
+        py_type = _json_type_to_py(pspec.get("type"), item_t)
+        annotations[pname] = py_type
+        if pname in required:
+            params.append(
+                inspect.Parameter(
+                    pname,
+                    inspect.Parameter.KEYWORD_ONLY,
+                    annotation=py_type,
+                )
+            )
+        else:
+            params.append(
+                inspect.Parameter(
+                    pname,
+                    inspect.Parameter.KEYWORD_ONLY,
+                    annotation=py_type,
+                    default=pspec.get("default", None),
+                )
+            )
+    annotations["return"] = Any
+
+    def _impl(**kwargs: Any) -> Any:
+        return _dispatch(name, {k: v for k, v in kwargs.items() if v is not None})
+
+    _impl.__signature__ = inspect.Signature(params, return_annotation=Any)  # type: ignore[attr-defined]
+    _impl.__annotations__ = annotations
+    _impl.__name__ = name
+    _impl.__doc__ = _build_docstring(spec)
+
+    server.tool(name=name, description=spec["description"])(_impl)
 
 
 def _fallback_dispatcher() -> None:

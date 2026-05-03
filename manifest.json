@@ -2,7 +2,7 @@
   "manifest_version": "0.4",
   "name": "medium-ops",
   "display_name": "Medium-OPS",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Medium CLI + 23-tool MCP server. Hybrid official API + dashboard GraphQL. Your IDE drafts the responses.",
   "long_description": "Medium-OPS is a standalone Medium CLI and 23-tool MCP server. It speaks both the legacy Medium Integration API (api.medium.com/v1) and the dashboard GraphQL endpoint, so you can read posts/responses, draft + publish, and triage notifications from a single tool. Your IDE (Claude Desktop / Cursor) drafts the responses — no AI API keys, no paid LLM dependencies. Auth is cookie-based: capture MEDIUM_SID / MEDIUM_UID / MEDIUM_XSRF from medium.com Application → Cookies, or set MEDIUM_INTEGRATION_TOKEN for the legacy API. Distributed via PyPI (`uvx medium-ops`), the official MCP Registry, and Glama.",
   "author": {
